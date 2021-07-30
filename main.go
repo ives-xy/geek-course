@@ -13,32 +13,24 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// week03 homework
 func main() {
 	ping := func(resp http.ResponseWriter, req *http.Request) {
 		_, _ = fmt.Fprint(resp, "ping")
 	}
 	eg, ctx := errgroup.WithContext(context.Background())
 	// http server
+	s := http.Server{
+		Addr:    "localhost:8888",
+		Handler: http.HandlerFunc(ping),
+	}
 	eg.Go(func() error {
-		var e error
-		c, cancel := context.WithCancel(context.Background())
-		go func() {
-			e = http.ListenAndServe("localhost:8888", http.HandlerFunc(ping))
-			if e != nil {
-				cancel()
-				log.Println("cancel")
-			}
-		}()
+		return s.ListenAndServe()
+	})
+	eg.Go(func() error {
 		select {
 		case <-ctx.Done():
-			log.Println("exit sig")
-		case <-c.Done():
-			log.Println("server error")
-			return errors.New("server error")
+			return s.Shutdown(context.Background())
 		}
-		log.Println("error =", e)
-		return e
 	})
 	// sig listener
 	eg.Go(func() error {
